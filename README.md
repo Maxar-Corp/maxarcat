@@ -1,7 +1,8 @@
-# maxarcat
+# Maxarcat
 
 Maxarcat is a Python client for searching the
-[Maxar Catalog](https://doc.content.maxar.com).
+[Maxar Catalog](https://doc.content.maxar.com) of satellite imagery
+and other geospatial content.
 
 The client consists of two parts:
 
@@ -13,7 +14,7 @@ The client consists of two parts:
 
 A single Python wheel called "maxarcat" includes both of these packages.
 
-See the Jupyter notebook in this repo
+See the [Jupyter](https://jupyter.org) notebook in this repo
 ([jupyter-notebooks/Maxar python client tutorial.ipynb](jupyter-notebooks/Maxar%20python%20client%20tutorial.ipynb))
 for examples of using the client.  Also see documentation on the
 [Maxar Catalog](https://doc.content.maxar.com) website.
