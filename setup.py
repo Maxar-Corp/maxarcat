@@ -16,11 +16,18 @@ with open(version_file, 'r') as file:
     version = file.read().strip()
 print(f'Building version {version}')
 
+long_description = '''
+Maxarcat is a Python client for searching the
+[Maxar Catalog](https://doc.content.maxar.com).
+'''
+
 setuptools.setup(
     name="maxarcat",
     version=version,
     author="Maxar",
     description="Maxar Catalog Python client",
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     url="https://github.com/Maxar-Corp/maxarcat",
     packages=[
         'maxarcat',
