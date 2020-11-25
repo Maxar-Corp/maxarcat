@@ -20,7 +20,7 @@ from maxarcat.exceptions import CatalogError
 
 
 class Catalog:
-    default_catalog_url = 'https://beta-api.content.satcloud.us/catalog'
+    default_catalog_url = 'https://api.content.maxar.com/catalog'
 
     default_auth_url = 'https://geobigdata.io/auth/v1/oauth/token'
 
