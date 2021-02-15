@@ -1,7 +1,7 @@
 data_classification:
-  - <replace me>
+  - public
 poc:
-  - name: Jane Smith
-    email: jane.smith@example.com
-  - name: Tasmania
-    email: Tasmania_team@example.com
+  - name: Chris Lesher
+    email: christopher.lesher@maxar.com
+  - name: Brian Rook
+    email: brian.rook@maxar.com
