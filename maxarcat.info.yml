@@ -1,0 +1,7 @@
+data_classification:
+  - public
+poc:
+  - name: Chris Lesher
+    email: christopher.lesher@maxar.com
+  - name: Brian Rook
+    email: brian.rook@maxar.com
