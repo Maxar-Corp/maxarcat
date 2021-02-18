@@ -309,7 +309,7 @@ class Catalog:
         :param url: Any catalog URL that supports GET.
         :return: Response body as bytes
         """
-        logging.info(f'GET {url}')
+        Catalog.logger.info(f'GET {url}')
         return self._request_url(requests.get, url)
 
     def get_url_json(self, url: str):
@@ -319,7 +319,7 @@ class Catalog:
         :param url: URL from an item's asset's href property
         :return: Parsed JSON, generally returning a dict
         """
-        logging.info(f'GET {url}')
+        Catalog.logger.info(f'GET {url}')
         response = self._request_url(requests.get, url)
         try:
             return json.loads(str(response, encoding='utf-8'))
