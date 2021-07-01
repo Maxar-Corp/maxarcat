@@ -23,7 +23,7 @@ def gbdx_token():
 
 @pytest.fixture(scope='session')
 def maxar_catalog_url():
-    return os.environ.get('MAXAR_CATALOG_URL', 'https://beta-api.content.maxar.com/catalog')
+    return os.environ.get('MAXAR_CATALOG_URL', 'https://api.content.maxar.com/catalog')
 
 
 @pytest.fixture(scope='session')
