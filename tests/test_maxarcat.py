@@ -123,6 +123,14 @@ class TestCatalog:
         for feature in feature_coll.features:
             assert feature.id in item_ids
 
+        # Now search again but specify complete=False.  None of these items is incomplete -- we
+        # just want to test that the search method correctly parses its complete parameter.
+        feature_coll = catalog.search(item_ids=item_ids, complete=False)
+        assert len(feature_coll.features) == len(item_ids)
+        for feature in feature_coll.features:
+            assert feature.id in item_ids
+
+
     @staticmethod
     def test_search_intersects(catalog):
         """

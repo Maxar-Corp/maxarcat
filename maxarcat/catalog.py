@@ -270,7 +270,7 @@ class Catalog:
             body['page'] = page
             Catalog.logger.info(f'Search page: {page}')
         if complete is not None:
-            complete_value = 1 if complete else 0
+            complete_value = True if complete else False
             body['complete'] = complete_value
             Catalog.logger.info(f'Complete: {complete_value}')
 
