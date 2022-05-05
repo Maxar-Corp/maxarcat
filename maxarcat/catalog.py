@@ -22,7 +22,7 @@ from maxarcat.exceptions import CatalogError
 class Catalog:
     default_catalog_url = 'https://api.content.maxar.com/catalog'
 
-    default_auth_url = 'https://geobigdata.io/auth/v1/oauth/token'
+    default_auth_url = 'https://auth.content.maxar.com/v1/oauth2/token'
 
     # Class-level logger shared by all Catalog instances
     logger_name = 'maxar.catalog'
@@ -30,14 +30,14 @@ class Catalog:
 
     def __init__(self, token: str, url: str = None):
         """
-        Initialize connection to Maxar catalog using the given GBDX token.
+        Initialize connection to Maxar catalog using the given Content Hub token.
 
         A Catalog object does not generate a new token once its current token has expired.
         It is the user's responsibility to create a new Catalog object if a token expires
         and a new one needs to be generated.
 
         :param url: URL of Catalog service.  If None then use default URL.
-        :param token: GBDX token to use in service requests.
+        :param token: Content Hub token to use in service requests.
         :param verbose: If True then Catalog methods print informational messages to stdout.
         """
         self._token = token
@@ -73,10 +73,10 @@ class Catalog:
     @staticmethod
     def connect(username: str = None, password: str = None, **kwargs):
         """
-        Construct and return a Catalog using a GBDX token generated from the given
+        Construct and return a Catalog using a Content Hub token generated from the given
         credentials.  Prompt the user to input username and password if they are not provided.
-        :param username: GBDX username
-        :param password: GBDX password
+        :param username: Content Hub username
+        :param password: Content Hub password
         :param kwargs: Additional keyword args to pass to Catalog constructor
         :return: New Catalog
         """
@@ -93,50 +93,39 @@ class Catalog:
     @staticmethod
     def get_token(auth_url: str, username: str, password: str = None) -> str:
         """
-        Generate a token from the GBDX authorization service.
+        Generate a token from the Content Hub authorization service.
 
-        :param auth_url: URL to authorization service, generally "https://geobigdata.io/auth/v1/oauth/token"
-        :param username: GBDX username.
-        :param password: GBDX password.
-        :return: GBDX token.
+        :param auth_url: URL to authorization service, generally "https://auth.content.maxar.com/v1/oauth2/token"
+        :param username: Content Hub username.
+        :param password: Content Hub password.
+        :return: Content Hub token.
         :raises CatalogError: if user is unauthorized, or any other kind of error generating token.
         """
 
-        # GBDX auth service successful response with status 200:
+        # Content Hub auth service successful response with status 200:
         # {
-        #     "access_token": "eyJ0eXAiOiJKV1QiLCJhbGci..."
-        #     "expires_in": 604800,
-        #     "token_type": "Bearer",
-        #     "scope": "openid email offline_access",
-        #     "refresh_token": "B35E3o-Kn7LSW5WmjIkdZP3F65inHZrWpGJx7yx_mBsGT"
-        # }
-        #
-        # GBDX auth service failed response with status 400:
-        # {
-        #     "Error": "400 Bad Request: Invalid POST data"
+        #     'token_type': 'Bearer', 
+        #     'expires_in': 43200, 
+        #     'access_token': 'eyJraWQiOiJRcENwTVNyUFJGSDNBbk...', 
+        #     'scope': 'content.rda.use content.internal content.catalog.use'
         # }
 
-        params = {
-            'grant_type': 'password',
-            'username': username,
-            'password': password
-        }
         Catalog.logger.info(f'Requesting token from {auth_url}')
-        response = requests.post(auth_url, data=params)
+        response = requests.post(auth_url, auth=(username, password))
         try:
             body = json.loads(response.text)
         except Exception as exp:
             raise CatalogError(
-                'Error requesting GBDX token.  Response from GBDX authorization service is not JSON.') from exp
+                'Error requesting Content Hub token.  Response from Content Hub authorization service is not JSON.') from exp
         token = body.get('access_token')
         if token:
             Catalog.logger.info('Token successfully received.')
             return token
         error = body.get('Error')
         if error:
-            raise CatalogError(f'Error requesting GBDX token: {error}')
+            raise CatalogError(f'Error requesting Content Hub token: {error}')
         raise CatalogError(
-            f'Error requesting GBDX token.  Unexpected response from service: {body}')
+            f'Error requesting Content Hub token.  Unexpected response from service: {body}')
 
     def get_healthcheck(self) -> maxarcat_client.models.Healthcheck:
         """
