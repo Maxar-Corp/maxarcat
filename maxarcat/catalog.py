@@ -10,13 +10,15 @@ import json
 import logging
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Union
+from typing import Iterator, Union
 
 import requests
 
 import maxarcat_client
 import maxarcat_client.rest
 from maxarcat.exceptions import CatalogError
+
+MAX_LIMIT = 100
 
 
 class Catalog:
@@ -265,32 +267,78 @@ class Catalog:
 
         return self._call_api(self._stac_api.post_search_stac_with_http_info, body=body)
 
-    def query(self, collections: list = None, bbox: list = None, intersects: dict = None,
-              start_datetime: datetime = None, end_datetime: datetime = None,
-              item_ids: list = None, where: str = None, orderby: str = None,
-              limit: int = None):
+    def query(
+        self,
+        collections: list = None,
+        bbox: list = None,
+        intersects: dict = None,
+        start_datetime: datetime = None,
+        end_datetime: datetime = None,
+        item_ids: list = None,
+        where: str = None,
+        orderby: str = None,
+        limit: int = None,
+        complete: bool = None,
+    ) -> Iterator[maxarcat_client.models.Item]:
+        """Query the Maxar catalog requesting additional pages as necessary.
+
+        :param collections: A list of collections to query against
+        :param bbox: Bounding box in degrees to search by.  Format is a sequence of the form [west, south, east, north]
+            or [west, south, zmin, east, north, zmax].  Optional.
+        :param intersects: Geometry to search by.  Dict of GeoJSON.  Optional.
+        :param start_datetime:
+        :param end_datetime:
+        :param item_ids: List of item IDs to query.
+        :param where: STAC item properties filter.
+        :param orderby: Columns to order result by.
+        :param limit: Maximum number of items to return.
+        :param complete: If False then include incomplete features in the search.  These are features
+            added to the catalog but with incomplete metadata.  Most users should only request complete features.
+        :return: GeoJSON FeatureCollection as dict
         """
-        Generator that performs a query on the catalog with the given filters, requesting
-        additional pages as necessary.
-        """
-        page = 0
-        feature_count = 0
-        while True:
-            # Using this logic we make one more request than we have to.  But this way
-            # we don't have to know what the service's page size limit is.
-            page += 1
-            Catalog.logger.info(f'Query page {page}')
-            feature_coll = self.search(collections=collections, bbox=bbox, intersects=intersects,
-                                       start_datetime=start_datetime, end_datetime=end_datetime,
-                                       item_ids=item_ids, where=where, orderby=orderby,
-                                       limit=limit, page=page)
-            for feature in feature_coll.features:
-                yield feature
-            num_features = len(feature_coll.features)
-            feature_count += num_features
-            if not num_features:
-                Catalog.logger.info(f'Total features returned: {feature_count}')
-                return
+        if limit is not None and limit <= MAX_LIMIT:
+            feature_coll = self.search(
+                collections=collections,
+                bbox=bbox,
+                intersects=intersects,
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
+                item_ids=item_ids,
+                where=where,
+                orderby=orderby,
+                limit=limit,
+                page=1,
+                complete=complete,
+            )
+            yield from feature_coll.features
+        else:
+            page = 0
+            feature_count = 0
+            while limit is None or feature_count < limit:
+                # Using this logic we make one more request than we have to.  But this way
+                # we don't have to know what the service's page size limit is.
+                page += 1
+                Catalog.logger.info(f"Query page {page}")
+                feature_coll = self.search(
+                    collections=collections,
+                    bbox=bbox,
+                    intersects=intersects,
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
+                    item_ids=item_ids,
+                    where=where,
+                    orderby=orderby,
+                    limit=MAX_LIMIT,
+                    page=page,
+                    complete=complete,
+                )
+                num_features = len(feature_coll.features)
+                temp = num_features if limit is None else min(limit - feature_count, num_features)
+                yield from feature_coll.features[:temp]
+                if not num_features or num_features < MAX_LIMIT:
+                    Catalog.logger.info(f"Total features returned: {feature_count}")
+                    return
+                feature_count += temp
 
     def get_url(self, url: str) -> bytes:
         """

@@ -62,9 +62,9 @@ class TestCatalog:
         start = datetime(year=2020, month=1, day=1, hour=12)
         end = datetime(year=2020, month=1, day=2, hour=15)
         collection = 'wv02'
-        features = catalog.query(collections=[collection], start_datetime=start, end_datetime=end)
+        feature_coll = catalog.search(collections=[collection], start_datetime=start, end_datetime=end)
         count = 0
-        for feature in features:
+        for feature in feature_coll.features:
             dt = TestCatalog.parse_datetime_iso8601(feature.properties['datetime'])
             assert start <= dt < end
             assert feature.collection == collection
@@ -199,9 +199,9 @@ class TestCatalog:
         # per page.  Assume that's still the case and perform a query
         # that should return thousands of items.  Stop after we've read
         # what should be a few pages.
-        feature_coll = catalog.search(bbox=[-100, 40, -105, 45])
+        features = catalog.query(bbox=[-100, 40, -105, 45])
         count = 0
-        for _ in feature_coll.features:
+        for _ in features:
             count += 1
             if count >= 500:
                 break
