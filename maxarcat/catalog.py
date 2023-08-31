@@ -10,7 +10,7 @@ import json
 import logging
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Union
+from typing import Optional, Tuple, Union
 
 import requests
 
@@ -292,6 +292,57 @@ class Catalog:
                 Catalog.logger.info(f'Total features returned: {feature_count}')
                 return
 
+    def collection_audit(
+            self,
+            collection_id: str,
+            insert_datetime: Tuple[Optional[datetime], Optional[datetime]] = None,
+            update_datetime: Tuple[Optional[datetime], Optional[datetime]] = None,
+            desc: bool = False,
+            page: int = None,
+            limit: int = None):
+        """
+
+        """
+
+        def parse_datetime_range(datetime_range: Tuple[Optional[datetime], Optional[datetime]]) -> str:
+            try:
+                (start_datetime, end_datetime) = datetime_range
+            except Exception:
+                raise Exception('start_datetime or end_datetime must be 2-element tuple')
+            if not (start_datetime is None or isinstance(start_datetime, datetime)):
+                raise Exception("Start datetime must be of type datetime or None")
+            if not (end_datetime is None or isinstance(end_datetime, datetime)):
+                raise Exception("End datetime must be of type datetime or None")
+            if start_datetime and end_datetime:
+                return '{}/{}'.format(
+                    Catalog.format_datetime_iso8601(start_datetime),
+                    Catalog.format_datetime_iso8601(end_datetime))
+            elif start_datetime:
+                return '{}/..'.format(Catalog.format_datetime_iso8601(start_datetime))
+            else:
+                return '../{}'.format(Catalog.format_datetime_iso8601(end_datetime))
+
+        parameters = {}
+        if not ((insert_datetime is None) ^ (update_datetime is None)):
+            raise Exception('Exactly one of the insert_datetime or update_datetime parameters must be specified')
+        if insert_datetime:
+            parameters['audit_insert_date'] = parse_datetime_range(insert_datetime)
+        else:
+            parameters['audit_update_date'] = parse_datetime_range(update_datetime)
+
+        if desc is not None:
+            parameters['sortby'] = 'DESC'
+        if limit is not None:
+            parameters['limit'] = limit
+            if page is not None:
+                parameters['page'] = page
+        elif page is not None:
+            raise Exception('page may not be specified without limit')
+
+        for (key, value) in parameters.items():
+            Catalog.logger.info(f'Audit {key}: {value}')
+        return self._call_api(self._coll_api.get_audit_search_with_http_info, collection_id, **parameters)
+
     def get_url(self, url: str) -> bytes:
         """
         Perform an HTTP GET on a catalog URL.
@@ -321,7 +372,7 @@ class Catalog:
 
         :param function: Swagger client method to call
         :param args: Arbitrary arguments to pass to function
-        :param kwargs: Arbitrar keyword arguments to pass to function
+        :param kwargs: Arbitrary keyword arguments to pass to function
         :raises CatalogError: if error returned by web service
         :return: Service response parsed as a model object
         """
