@@ -59,6 +59,5 @@ setuptools.setup(
         'six',
         'urllib3'
     ],
-    # Need at least 3.5 since we're using typing
-    python_requires='>=3.5'
+    python_requires='>=3.8'
 )

@@ -4,12 +4,15 @@
 # Pytest test for maxarcat.
 #
 
+import json
 from datetime import datetime
 
+import pytest
 import shapely.geometry
 
 
 class TestCatalog:
+    imagery_collections = ['wv01', 'wv02', 'wv03-vnir' 'wv03-swir', 'wv04', 'ge01']
 
     @staticmethod
     def test_healthcheck(catalog):
@@ -17,6 +20,7 @@ class TestCatalog:
         print(response)
 
     @staticmethod
+    @pytest.mark.skip(reason='Querying all collections currently times out because there are so many')
     def test_get_collections(catalog):
         collections = catalog.get_collections()
         print(f'Number of collections: {len(collections.collections)}')
@@ -105,31 +109,29 @@ class TestCatalog:
         # Get an arbitrary set of 10 items to test with
         feature_coll = catalog.search(collections=['wv02'], bbox=[-105, 40, -104, 41], limit=10)
 
-        # No request each feature one at a time, both by just its ID and with
-        # its collection ID.
+        # Now request each feature one at a time, both by just its ID and with
+        # its collection ID.  We
         for feature in feature_coll.features:
-            feature2 = catalog.get_item(feature.id)
+            feature2 = catalog.get_item(feature.id, feature.collection)
             assert feature == feature2
-            feature3 = catalog.get_item(feature.id, feature.collection)
-            assert feature == feature3
             # Try fetching item but from a different collection, must fail
             assert catalog.get_item(feature.id, 'wv01') is None
 
         # Now test fetching the same set of 10 features, this time all at
-        # once with a list of IDs
+        # once with a list of IDs.  Must limit the search to imagery collections because catalog
+        # has other collections that use image identifiers as IDs.
         item_ids = [feature.id for feature in feature_coll.features]
-        feature_coll = catalog.search(item_ids=item_ids)
+        feature_coll = catalog.search(item_ids=item_ids, collections=TestCatalog.imagery_collections)
         assert len(feature_coll.features) == len(item_ids)
         for feature in feature_coll.features:
             assert feature.id in item_ids
 
         # Now search again but specify complete=False.  None of these items is incomplete -- we
         # just want to test that the search method correctly parses its complete parameter.
-        feature_coll = catalog.search(item_ids=item_ids, complete=False)
+        feature_coll = catalog.search(item_ids=item_ids, complete=False, collections=TestCatalog.imagery_collections)
         assert len(feature_coll.features) == len(item_ids)
         for feature in feature_coll.features:
             assert feature.id in item_ids
-
 
     @staticmethod
     def test_search_intersects(catalog):
@@ -179,7 +181,7 @@ class TestCatalog:
         while True:
             page += 1
             print(f'Requesting page {page} of size {page_size}')
-            batch = catalog.search(item_ids=ids, page=page, limit=page_size)
+            batch = catalog.search(item_ids=ids, page=page, limit=page_size, collections=['wv01'])
             batch_ids = {feature.id for feature in batch.features}
             if not batch_ids:
                 break
@@ -246,6 +248,50 @@ class TestCatalog:
         assert TestCatalog.parse_datetime_iso8601('2020-01-02T03:04:05Z') == datetime(2020, 1, 2, 3, 4, 5)
         assert TestCatalog.parse_datetime_iso8601('2020-01-02T03:04:05.5Z') == datetime(2020, 1, 2, 3, 4, 5, 500000)
         assert TestCatalog.parse_datetime_iso8601('2020-01-02T03:04:05.123Z') == datetime(2020, 1, 2, 3, 4, 5, 123000)
+
+    @staticmethod
+    def test_collection_audit_invalid_params(catalog):
+        # Must specify either insert_datetime or update_datetime
+        with(pytest.raises(Exception)):
+            catalog.collection_audit(collection_id='wv01')
+        # insert_datetime and update_datetime must be 2-element tuples datetime values, one of which may be None.
+        with(pytest.raises(Exception)):
+            catalog.collection_audit(collection_id='wv01', insert_datetime=(None, None))
+        with(pytest.raises(Exception)):
+            catalog.collection_audit(collection_id='wv01', update_datetime=(None, None))
+        with(pytest.raises(Exception)):
+            catalog.collection_audit(collection_id='wv01', insert_datetime=(None, 'abc'))
+        with(pytest.raises(Exception)):
+            catalog.collection_audit(collection_id='wv01', update_datetime=('abc', None))
+        # page requires limit
+        with(pytest.raises(Exception)):
+            catalog.collection_audit(collection_id='wv01', update_datetime=(datetime(2023, 1, 1), None), page=1)
+
+    @staticmethod
+    def test_collection_audit_paging(catalog):
+        """
+        Exercise paging on the audit method
+        """
+        # Read a day's worth of images based on insert date.  Exercise paging by
+        # only reading 100 at a time.
+        collection_id = 'wv01'
+        start_datetime = datetime(2023, 1, 1)
+        end_datetime = datetime(2023, 1, 2)
+        limit = 100
+        page = 0
+        all_item_ids = set()
+        while True:
+            page += 1
+            print(f'Reading page {page}')
+            item_ids = catalog.collection_audit(
+                collection_id=collection_id, insert_datetime=(start_datetime, end_datetime),
+                page=page, limit=limit)
+            print(f'Num features {len(item_ids)}')
+            assert not (all_item_ids & set(item_ids))   # No item IDs returned twice
+            all_item_ids |= set(item_ids)
+            if len(item_ids) < limit:
+                break
+        print(f'Total features returned: {len(all_item_ids)}')
 
     @staticmethod
     def parse_datetime_iso8601(value):
